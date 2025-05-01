@@ -94,6 +94,7 @@ The application supports various BitNet models, including:
 bitnet-inference/
 ├── app/
 │   ├── static/
+│   │   ├── imgs/
 │   │   ├── css/
 │   │   └── js/
 │   ├── templates/
