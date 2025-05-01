@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitNet Inference App</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-brain"></i> BitNet Inference</h1>
+            <p>Run 1-bit LLM models efficiently on your CPU</p>
+        </header>
+
+        <div class="model-section">
+            <h2>Model Setup</h2>
+            <div class="model-status">
+                <p id="model-status-text">No model loaded</p>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="download">Download Model</button>
+                <button class="tab-btn" data-tab="upload">Upload Model</button>
+            </div>
+            
+            <div class="tab-content active" id="download-tab">
+                <form id="download-form">
+                    <div class="form-group">
+                        <label for="model-name">Model Name or HuggingFace Path:</label>
+                        <input type="text" id="model-name" name="model-name" placeholder="e.g., BitNet-b1.58-2B-4T or microsoft/BitNet-b1.58-2B-4T">
+                    </div>
+                    <button type="submit" class="btn">Download Model</button>
+                </form>
+                
+                <!-- Download Progress Bar -->
+                <div id="download-progress-container" class="progress-container" style="display: none;">
+                    <h4>Downloading Model</h4>
+                    <div class="progress-bar-container">
+                        <div id="download-progress-bar" class="progress-bar"></div>
+                    </div>
+                    <p id="download-progress-text" class="progress-text">Initializing download...</p>
+                </div>
+                
+                <div class="popular-models">
+                    <h3>Popular Models:</h3>
+                    <ul>
+                        <li><a href="#" class="model-link" data-model="microsoft/BitNet-b1.58-2B-4T">BitNet-b1.58-2B-4T</a></li>
+                        <li><a href="#" class="model-link" data-model="1bitLLM/bitnet_b1_58-large">bitnet_b1_58-large</a></li>
+                        <li><a href="#" class="model-link" data-model="1bitLLM/bitnet_b1_58-3B">bitnet_b1_58-3B</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="upload-tab">
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="model-file">Upload GGUF Model File:</label>
+                        <input type="file" id="model-file" name="file" accept=".gguf">
+                    </div>
+                    <button type="submit" class="btn">Upload Model</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="inference-section">
+            <h2>Text Generation</h2>
+            <form id="inference-form">
+                <div class="form-group">
+                    <label for="prompt">Prompt:</label>
+                    <textarea id="prompt" name="prompt" rows="5" placeholder="Enter your prompt here..."></textarea>
+                </div>
+                
+                <div class="settings">
+                    <div class="form-group">
+                        <label for="temperature">Temperature:</label>
+                        <input type="range" id="temperature" name="temperature" min="0.1" max="1.5" step="0.1" value="0.7">
+                        <span id="temperature-value">0.7</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="n-predict">Max Tokens:</label>
+                        <input type="number" id="n-predict" name="n-predict" min="10" max="2048" value="128">
+                    </div>
+                    
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="conversation" name="conversation" checked>
+                        <label for="conversation">Conversation Mode</label>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn generate-btn">Generate <i class="fas fa-magic"></i></button>
+            </form>
+            
+            <div class="output-container">
+                <h3>Output:</h3>
+                <div class="output" id="output">
+                    <p class="placeholder">Generated text will appear here...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="system-logs">
+            <h2>System Logs</h2>
+            <div class="logs" id="logs"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>BitNet Inference App &copy;Mindscope AI 2025 | <a href="https://github.com/microsoft/BitNet" target="_blank">BitNet GitHub</a></p>
+    </footer>
+
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
+</body>
+</html> 
