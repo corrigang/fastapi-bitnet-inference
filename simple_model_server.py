@@ -40,7 +40,7 @@ def load_model(model_path: str) -> bool:
             # This is a standard transformer model
             try:
                 # Load tokenizer first
-                TOKENIZER = AutoTokenizer.from_pretrained(model_path)
+                TOKENIZER = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
                 
                 # Load model with appropriate settings for CPU
                 if DEVICE == "cpu":
@@ -52,7 +52,8 @@ def load_model(model_path: str) -> bool:
                             torch_dtype=torch.float16,
                             load_in_4bit=True,
                             low_cpu_mem_usage=True,
-                            device_map=DEVICE
+                            device_map=DEVICE,
+                            trust_remote_code=True
                         )
                     except Exception as e:
                         logger.warning(f"4-bit quantization failed, trying 8-bit: {e}")
@@ -63,7 +64,8 @@ def load_model(model_path: str) -> bool:
                                 torch_dtype=torch.float16,
                                 load_in_8bit=True,
                                 low_cpu_mem_usage=True,
-                                device_map=DEVICE
+                                device_map=DEVICE,
+                                trust_remote_code=True
                             )
                         except Exception as e2:
                             logger.warning(f"8-bit quantization failed, trying standard loading: {e2}")
@@ -72,13 +74,15 @@ def load_model(model_path: str) -> bool:
                                 model_path,
                                 torch_dtype=torch.float16,
                                 low_cpu_mem_usage=True,
-                                device_map=DEVICE
+                                device_map=DEVICE,
+                                trust_remote_code=True
                             )
                 else:
                     # GPU available, use standard loading
                     MODEL = AutoModelForCausalLM.from_pretrained(
-                        model_path, 
-                        device_map=DEVICE
+                        model_path,
+                        device_map=DEVICE,
+                        trust_remote_code=True
                     )
                 
                 USE_PIPELINE = False
@@ -99,6 +103,7 @@ def load_model(model_path: str) -> bool:
                 model=model_path,
                 device=0 if DEVICE == "cuda" else -1,
                 torch_dtype=torch.float16 if DEVICE == "cpu" else None,
+                trust_remote_code=True
             )
             # Get the tokenizer from the pipeline
             TOKENIZER = MODEL.tokenizer

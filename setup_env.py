@@ -89,7 +89,7 @@ def setup_environment(model_dir, quant_type="i2_s", quant_embd=False, use_pretun
         
         # Build the project
         build_cmd = [
-            'python', 'setup_env.py',
+            sys.executable, 'setup_env.py',
             '--model-dir', model_dir,
             '--quant-type', quant_type
         ]

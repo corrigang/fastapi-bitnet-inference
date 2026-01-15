@@ -12,6 +12,11 @@ import shutil
 import threading
 import time
 import glob
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(title="BitNet Inference App")
@@ -27,6 +32,25 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 # Track if a model is loaded
 model_loaded = False
 current_model = None
+
+# Auto-detect and load existing models with GGUF files on startup
+def auto_load_model():
+    global model_loaded, current_model
+    if os.path.exists(MODEL_DIR):
+        for model_name in os.listdir(MODEL_DIR):
+            model_path = os.path.join(MODEL_DIR, model_name)
+            if os.path.isdir(model_path):
+                # Check for GGUF files
+                gguf_files = [f for f in os.listdir(model_path) if f.endswith('.gguf')]
+                if gguf_files:
+                    model_loaded = True
+                    current_model = model_path
+                    logger.info(f"Auto-loaded model: {model_path}")
+                    return
+    logger.info("No models with GGUF files found to auto-load")
+
+# Run auto-load on module import
+auto_load_model()
 
 # Track download progress
 download_progress = {
@@ -88,7 +112,7 @@ def download_model(model_name, background_tasks=None):
         # Download model - we can't track actual progress with snapshot_download
         # but we'll simulate progress for better UX
         cmd = [
-            "python", "-c",
+            sys.executable, "-c",
             f"from huggingface_hub import snapshot_download; snapshot_download(repo_id='{model_name}', local_dir='{output_dir}')"
         ]
         subprocess.run(cmd, check=True)
@@ -101,7 +125,7 @@ def download_model(model_name, background_tasks=None):
         try:
             # Setup environment for model
             setup_cmd = [
-                "python", "setup_env.py", 
+                sys.executable, "setup_env.py",
                 "--model-dir", output_dir,
                 "--quant-type", "i2_s"
             ]
@@ -171,26 +195,37 @@ def run_inference(prompt, conversation=True, n_predict=128, temperature=0.7):
                         full_prompt = prompt
                     
                     cmd = [
-                        "python", "simple_model_server.py",
+                        sys.executable, "simple_model_server.py",
                         "--model", current_model,
                         "--prompt", full_prompt,
                         "--max-tokens", str(n_predict),
                         "--temperature", str(temperature)
                     ]
-                    
+
                     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                    
+
+                    logger.info(f"Model server stdout: {result.stdout[:500] if result.stdout else 'empty'}")
+                    logger.info(f"Model server stderr: {result.stderr[:500] if result.stderr else 'empty'}")
+
                     # Extract the generated text part
-                    output_lines = result.stdout.strip().split("Generated Text:")
+                    combined_output = result.stdout + result.stderr
+                    output_lines = combined_output.split("Generated Text:")
                     if len(output_lines) > 1:
                         output = output_lines[1].strip().replace("--------------", "").strip()
                     else:
-                        output = result.stdout
-                    
+                        # Try to find any meaningful output
+                        output = result.stdout.strip() if result.stdout.strip() else result.stderr.strip()
+
                     return {"status": "success", "output": output}
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Model server failed: stdout={e.stdout}, stderr={e.stderr}")
+                    return {
+                        "status": "error",
+                        "message": f"Error running fallback model server: {e.stderr or str(e)}"
+                    }
                 except Exception as e:
                     return {
-                        "status": "error", 
+                        "status": "error",
                         "message": f"Error running fallback model server: {str(e)}. Please install transformers: pip install transformers"
                     }
             else:
@@ -204,9 +239,9 @@ def run_inference(prompt, conversation=True, n_predict=128, temperature=0.7):
                             full_prompt = f"System: {prompt}\nAssistant: "
                         else:
                             full_prompt = prompt
-                        
+
                         cmd = [
-                            "python", "simple_model_server.py",
+                            sys.executable, "simple_model_server.py",
                             "--model", current_model,
                             "--prompt", full_prompt,
                             "--max-tokens", str(n_predict),
@@ -236,15 +271,17 @@ def run_inference(prompt, conversation=True, n_predict=128, temperature=0.7):
         
         # Run inference with BitNet's run_inference.py
         cmd = [
-            "python", "run_inference.py",
+            sys.executable, "run_inference.py",
             "-m", model_file,
             "-p", prompt,
             "-n", str(n_predict),
-            "-temp", str(temperature)
+            "-temp", str(temperature),
+            "-t", "8"
         ]
-        
-        if conversation:
-            cmd.append("-cnv")
+
+        # Note: -cnv (conversation mode) can cause hangs, disabled for now
+        # if conversation:
+        #     cmd.append("-cnv")
         
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         return {"status": "success", "output": result.stdout}
@@ -259,22 +296,22 @@ def run_inference(prompt, conversation=True, n_predict=128, temperature=0.7):
                     full_prompt = prompt
                 
                 cmd = [
-                    "python", "simple_model_server.py",
+                    sys.executable, "simple_model_server.py",
                     "--model", current_model,
                     "--prompt", full_prompt,
                     "--max-tokens", str(n_predict),
                     "--temperature", str(temperature)
                 ]
-                
+
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                
+
                 # Extract the generated text part
                 output_lines = result.stdout.strip().split("Generated Text:")
                 if len(output_lines) > 1:
                     output = output_lines[1].strip().replace("--------------", "").strip()
                 else:
                     output = result.stdout
-                
+
                 return {"status": "success", "output": output}
             except Exception as fallback_e:
                 return {"status": "error", "message": f"Error during fallback inference: {str(fallback_e)}"}
@@ -345,4 +382,4 @@ async def model_status():
     })
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("app:app", host="0.0.0.0", port=8001, reload=True) 
